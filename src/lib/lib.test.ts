@@ -22,6 +22,18 @@ describe('CSV 导入', () => {
     for (const x of words) expect(makeCloze(x.exampleEn, x.word), x.word).not.toBeNull()
   })
 
+  it('12 周词表：384 个词，每周够用，每个例句都能出填空题', () => {
+    const { words, errors } = parseWordCsv(readFileSync('public/pet-words.csv', 'utf8'))
+    expect(errors).toEqual([])
+    expect(words).toHaveLength(384)
+    for (let wk = 1; wk <= 12; wk++) {
+      // 第 1–8 周每天 8 个 × 4 天，第 9–12 周每天 5 个 × 4 天
+      expect(words.filter((x) => x.week === wk).length, `week ${wk}`).toBeGreaterThanOrEqual(wk <= 8 ? 32 : 20)
+    }
+    for (const x of words) expect(makeCloze(x.exampleEn, x.word), x.word).not.toBeNull()
+    expect(new Set(words.map((x) => x.meaningZh)).size).toBe(words.length)
+  })
+
   it('支持引号里的逗号、BOM、CRLF，跳过坏行并说明原因', () => {
     const csv = '﻿word,pos,meaning_zh,example_en,topic,week,need_spelling\r\n' +
       'abroad,adv,在国外,"My cousin, Tom, studies abroad.",travel,4,1\r\n' +

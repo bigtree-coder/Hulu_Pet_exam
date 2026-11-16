@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['sample-words.csv', 'icon.svg'],
+      includeAssets: ['sample-words.csv', 'pet-words.csv', 'icon.svg'],
       workbox: { globPatterns: ['**/*.{js,css,html,svg,png,csv}'] },
       manifest: {
         name: 'Hulu PET',

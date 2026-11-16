@@ -191,7 +191,8 @@ function WordList() {
             onChange={async (e) => { const f = e.target.files?.[0]; if (f) await load(await f.text()); e.target.value = '' }}
           />
           <button className="btn" onClick={() => fileRef.current?.click()}>上传 CSV</button>
-          <button className="btn ghost" onClick={async () => load(await (await fetch('sample-words.csv')).text())}>载入 20 词示例</button>
+          <button className="btn ghost" onClick={async () => load(await (await fetch('pet-words.csv')).text())}>载入 12 周词表（384 词）</button>
+          <button className="btn quiet" onClick={async () => load(await (await fetch('sample-words.csv')).text())}>载入 20 词示例</button>
         </div>
         {msgs.map((m, i) => <p key={i} className={i ? 'note' : ''}>{m}</p>)}
       </div>
