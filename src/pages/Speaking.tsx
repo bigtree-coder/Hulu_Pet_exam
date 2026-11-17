@@ -1,15 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
-import { useObjectUrl, useSettings, useToday } from '../hooks'
+import { KidPlayer } from '../components/AudioPlayer'
+import { useSettings, useToday } from '../hooks'
 import { db } from '../lib/db'
 import { weekOf, WEEKS } from '../lib/plan'
 import { setTaskDone } from '../lib/store'
 import type { Recording } from '../lib/types'
-
-export function AudioPlayer({ blob }: { blob: Blob }) {
-  const url = useObjectUrl(blob)
-  return url ? <audio controls src={url} /> : null
-}
 
 export default function Speaking() {
   const today = useToday()
@@ -80,7 +76,7 @@ export default function Speaking() {
       {state === 'review' && take && (
         <div className="card stack">
           <p>Listen to yourself. Happy with it? <span className="zh">听一听，满意就保存。</span></p>
-          <AudioPlayer blob={take.blob} />
+          <KidPlayer blob={take.blob} fallbackSeconds={take.seconds} label="your recording" />
           <div className="row">
             <button className="btn grow" onClick={save}>Save</button>
             <button className="btn ghost grow" onClick={() => { setTake(undefined); setState('idle') }}>Try again</button>
@@ -100,7 +96,7 @@ export default function Speaking() {
                 <span className="pill">Week {r.week} · {r.part}</span>
               </div>
               <p className="note">{r.prompt}</p>
-              <AudioPlayer blob={r.blob} />
+              <KidPlayer blob={r.blob} fallbackSeconds={r.seconds} label={r.date} />
             </div>
           ))}
         </>

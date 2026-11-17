@@ -2,7 +2,7 @@ import { addDays, weekStart, weekday } from './dates'
 import { db as defaultDb, DEFAULT_SETTINGS, type PetDB } from './db'
 import { defaultMinimal, planFor } from './plan'
 import { applyAnswer, markKnown, newCard, unmarkKnown } from './srs'
-import type { CardState, DayMeta, QType, Settings, TaskType, Word } from './types'
+import type { CardState, DayMeta, ListeningAudio, QType, Settings, TaskType, Word } from './types'
 
 export async function getSettings(db: PetDB = defaultDb): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(await db.settings.get('main')) }
@@ -129,4 +129,44 @@ export function streak(days: DayMeta[], today: string): number {
     else break
   }
   return n
+}
+
+const AUDIO_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav',
+  ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', webm: 'audio/webm', flac: 'audio/flac',
+}
+const extOf = (name: string) => /\.([^.]+)$/.exec(name)?.[1]?.toLowerCase() ?? ''
+
+/** 按 MIME 类型或扩展名判断是不是音频（iPad 选文件时有时拿不到 MIME 类型） */
+export function isAudioFile(f: { name: string; type: string }): boolean {
+  return f.type.startsWith('audio/') || extOf(f.name) in AUDIO_TYPES
+}
+
+/** 「Track_03.mp3」→「Track 03」 */
+export function audioTitle(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, '').replace(/_+/g, ' ').trim() || fileName
+}
+
+/** 同一周内按名称自然排序：Track 2 排在 Track 10 前面 */
+export function sortAudios(list: ListeningAudio[]): ListeningAudio[] {
+  return [...list].sort((a, b) => a.week - b.week || a.name.localeCompare(b.name, undefined, { numeric: true }) || a.id! - b.id!)
+}
+
+export async function addListeningAudios(
+  files: File[], week: number, db: PetDB = defaultDb,
+): Promise<{ added: number; skipped: string[] }> {
+  const skipped: string[] = []
+  const rows: ListeningAudio[] = []
+  for (const f of files) {
+    if (!isAudioFile(f)) { skipped.push(f.name); continue }
+    // 复制成普通 Blob 再存：Safari 里直接存 File 引用，换个时间读有时会失效
+    const type = f.type || AUDIO_TYPES[extOf(f.name)] || 'audio/mpeg'
+    rows.push({ week, name: audioTitle(f.name), blob: new Blob([await f.arrayBuffer()], { type }), size: f.size, addedAt: Date.now() })
+  }
+  if (rows.length) await db.audios.bulkAdd(rows)
+  return { added: rows.length, skipped }
+}
+
+export async function audiosForWeek(week: number, db: PetDB = defaultDb): Promise<ListeningAudio[]> {
+  return sortAudios(await db.audios.where('week').equals(week).toArray())
 }

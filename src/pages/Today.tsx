@@ -1,9 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { KidPlayer } from '../components/AudioPlayer'
 import { go, useSettings, useToday } from '../hooks'
 import { weekday } from '../lib/dates'
 import { db } from '../lib/db'
 import { planFor, WEEKS, type TaskDef } from '../lib/plan'
-import { isMinimal, restCardsLeft, setMinimal, setTaskDone, spendRestCard } from '../lib/store'
+import { audiosForWeek, isMinimal, restCardsLeft, setMinimal, setTaskDone, spendRestCard } from '../lib/store'
 import { speak } from '../lib/tts'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -104,6 +105,7 @@ export default function Today() {
             </div>
             <p style={{ marginTop: 8 }}>{t.detail}</p>
             {t.type === 'chat' && <WeekWords week={plan.week} />}
+            {(t.type === 'listening' || t.type === 'practice') && <WeekAudios week={plan.week} />}
           </div>
         )
       })}
@@ -122,6 +124,22 @@ export default function Today() {
           🛋️ Use a rest card <span className="zh">休息卡 · {restLeft} left this week</span>
         </button>
       )}
+    </div>
+  )
+}
+
+/** 家长为本周上传的听力音频；没有上传就什么都不显示，照常用纸质真题和 CD */
+function WeekAudios({ week }: { week: number }) {
+  const audios = useLiveQuery(() => audiosForWeek(week), [week])
+  if (!audios?.length) return null
+  return (
+    <div className="audio-list">
+      {audios.map((a) => (
+        <div key={a.id}>
+          <b>🎧 {a.name}</b>
+          <KidPlayer blob={a.blob} label={a.name} />
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { CardState, DailyTask, DayMeta, Recording, ReviewLog, Settings, Word, Writing } from './types'
+import type { CardState, DailyTask, DayMeta, ListeningAudio, Recording, ReviewLog, Settings, Word, Writing } from './types'
 
 export class PetDB extends Dexie {
   words!: Table<Word, number>
@@ -10,6 +10,7 @@ export class PetDB extends Dexie {
   recordings!: Table<Recording, number>
   writings!: Table<Writing, number>
   settings!: Table<Settings, string>
+  audios!: Table<ListeningAudio, number>
 
   constructor(name = 'hulu-pet') {
     super(name)
@@ -23,6 +24,8 @@ export class PetDB extends Dexie {
       writings: '++id, date',
       settings: 'key',
     })
+    // v2：听力音频。音频文件大，不进 JSON 备份
+    this.version(2).stores({ audios: '++id, week' })
   }
 }
 

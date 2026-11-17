@@ -79,6 +79,16 @@ export interface Writing {
   aiFeedback?: AiFeedback
 }
 
+/** 家长上传的听力音频（真题集附带的 MP3 等），按周次显示在听力任务卡上 */
+export interface ListeningAudio {
+  id?: number
+  week: number
+  name: string
+  blob: Blob
+  size: number
+  addedAt: number
+}
+
 export interface Settings {
   key: 'main'
   startDate: string

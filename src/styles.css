@@ -105,3 +105,9 @@ label.check { display: inline-flex; align-items: center; gap: 10px; min-height: 
 .bar i { display: block; height: 16px; border-radius: 6px; background: var(--teal); min-width: 2px; }
 .note { color: var(--muted); font-size: 0.95rem; }
 .pre { white-space: pre-wrap; }
+
+/* 播放器 */
+.player { display: flex; align-items: center; gap: 12px; }
+.seek { height: 48px; accent-color: var(--teal); cursor: pointer; min-width: 80px; }
+.audio-list { display: grid; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.audio-list b { display: block; }

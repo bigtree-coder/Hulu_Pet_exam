@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettings, useToday } from '../hooks'
 import { exportAll, importAll } from '../lib/backup'
 import { parseWordCsv } from '../lib/csv'
@@ -7,12 +7,12 @@ import { addDays, isValidDate, weekStart } from '../lib/dates'
 import { db } from '../lib/db'
 import { checkPassword, hashPassword } from '../lib/hash'
 import { weekOf, WEEKS } from '../lib/plan'
-import { deleteWords, importWords, saveSettings, setKnown } from '../lib/store'
+import { addListeningAudios, deleteWords, importWords, saveSettings, setKnown, sortAudios } from '../lib/store'
 import type { Settings } from '../lib/types'
-import { AudioPlayer } from './Speaking'
+import { NativePlayer } from '../components/AudioPlayer'
 import { FeedbackCard } from './Writing'
 
-const TABS = ['本周概览', '词表', '录音和作文', '设置'] as const
+const TABS = ['本周概览', '词表', '听力音频', '录音和作文', '设置'] as const
 type Tab = (typeof TABS)[number]
 
 export default function Parent() {
@@ -31,6 +31,7 @@ export default function Parent() {
       </div>
       {tab === '本周概览' && <Overview settings={settings} />}
       {tab === '词表' && <WordList />}
+      {tab === '听力音频' && <ListeningAudios settings={settings} />}
       {tab === '录音和作文' && <Records />}
       {tab === '设置' && <SettingsTab settings={settings} />}
     </div>
@@ -242,6 +243,101 @@ function WordList() {
   )
 }
 
+const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`
+const weekListening = (w: number) => WEEKS[w - 1].listening ?? WEEKS[w - 1].weekend ?? ''
+
+function ListeningAudios({ settings }: { settings: Settings }) {
+  const today = useToday()
+  const [week, setWeek] = useState(() => weekOf(today, settings.startDate))
+  const [msgs, setMsgs] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [usage, setUsage] = useState<string>()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const audios = useLiveQuery(async () => sortAudios(await db.audios.toArray()), [])
+
+  useEffect(() => {
+    void navigator.storage?.estimate?.().then((e) => {
+      if (e.usage !== undefined) setUsage(`本设备已用约 ${mb(e.usage)}${e.quota ? `，上限约 ${mb(e.quota)}` : ''}`)
+    })
+  }, [audios?.length])
+
+  const upload = async (files: File[]) => {
+    setBusy(true)
+    setMsgs([])
+    try {
+      // 请求浏览器不要在空间紧张时自动清理本应用的数据
+      await navigator.storage?.persist?.().catch(() => false)
+      const { added, skipped } = await addListeningAudios(files, week)
+      setMsgs([
+        `已添加 ${added} 个音频到第 ${week} 周。`,
+        ...skipped.map((n) => `「${n}」不是音频文件，已跳过。`),
+      ])
+    } catch (e) {
+      setMsgs([e instanceof Error && e.name === 'QuotaExceededError' ? '设备空间不够，先删掉一些不用的音频再试。' : '上传失败，请再试一次。'])
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const weeks = [...new Set((audios ?? []).map((a) => a.week))]
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <h2>上传听力音频</h2>
+        <p className="note">
+          上传真题集附带的听力音频（MP3、M4A 等，可一次选多个）。孩子在这一周的听力任务卡和周六练习卡上会看到播放器，
+          边听边在纸质真题上作答，做完照常打勾。同一周的多个音频按文件名排序。
+        </p>
+        <label className="stack">
+          <span>放到第几周</span>
+          <select className="field" value={week} onChange={(e) => setWeek(Number(e.target.value))}>
+            {WEEKS.map((_, i) => (
+              <option key={i} value={i + 1}>第 {i + 1} 周 · {weekListening(i + 1)}</option>
+            ))}
+          </select>
+        </label>
+        <div className="row">
+          <input
+            ref={fileRef} type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" multiple hidden
+            onChange={async (e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) await upload(fs) }}
+          />
+          <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? '正在保存…' : '选择音频文件'}</button>
+        </div>
+        {msgs.map((m, i) => <p key={i} className={i ? 'note' : ''}>{m}</p>)}
+        <p className="note">
+          音频只存在这台设备的浏览器里，不进 JSON 备份。{usage && `${usage}。`}
+          在 iPad 上请把应用添加到主屏幕使用，Safari 才不会在一段时间不用后清掉本地数据。
+        </p>
+      </div>
+
+      {weeks.length === 0 && <p className="zh">还没有上传音频。没有音频的周，听力任务照常用纸质真题和 CD。</p>}
+      {weeks.map((w) => (
+        <div key={w} className="card stack">
+          <h2>第 {w} 周 <span className="note">{weekListening(w)}</span></h2>
+          {audios!.filter((a) => a.week === w).map((a) => (
+            <div key={a.id} className="stack" style={{ paddingBottom: 12, borderBottom: '1px solid var(--line)' }}>
+              <div className="row">
+                <input
+                  key={`${a.id}-${a.name}`} className="field grow" style={{ width: 'auto' }} defaultValue={a.name} aria-label="音频名称"
+                  onBlur={(e) => { const name = e.target.value.trim(); if (name && name !== a.name) void db.audios.update(a.id!, { name }) }}
+                />
+                <select className="field" style={{ width: 'auto' }} value={a.week} aria-label="移到第几周" onChange={(e) => db.audios.update(a.id!, { week: Number(e.target.value) })}>
+                  {WEEKS.map((_, i) => <option key={i} value={i + 1}>第 {i + 1} 周</option>)}
+                </select>
+              </div>
+              <NativePlayer blob={a.blob} />
+              <div className="row spread">
+                <span className="note">{mb(a.size)}</span>
+                <button className="btn quiet" onClick={() => { if (confirm(`删除「${a.name}」？`)) void db.audios.delete(a.id!) }}>删除</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Records() {
   const recordings = useLiveQuery(() => db.recordings.orderBy('date').reverse().toArray(), [])
   const writings = useLiveQuery(() => db.writings.orderBy('date').reverse().toArray(), [])
@@ -267,7 +363,7 @@ function Records() {
             <button className="btn quiet" onClick={() => { if (confirm('删除这段录音？')) void db.recordings.delete(r.id!) }}>删除</button>
           </div>
           <p className="note">{r.prompt}</p>
-          <AudioPlayer blob={r.blob} />
+          <NativePlayer blob={r.blob} />
         </div>
       ))}
     </div>
@@ -325,7 +421,7 @@ function SettingsTab({ settings }: { settings: Settings }) {
 
       <div className="card stack">
         <h2>备份</h2>
-        <p className="note">所有数据只保存在这台设备的浏览器里。换设备或清理浏览器前，请先导出。备份文件包含录音和作文，不含 API 密钥。</p>
+        <p className="note">所有数据只保存在这台设备的浏览器里。换设备或清理浏览器前，请先导出。备份文件包含录音和作文，不含听力音频和 API 密钥；听力音频请保留原文件，换设备后重新上传。</p>
         <div className="row">
           <button className="btn" onClick={download}>导出 JSON</button>
           <input

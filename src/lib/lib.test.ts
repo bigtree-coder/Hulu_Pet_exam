@@ -5,7 +5,7 @@ import { addDays, weekday, weekStart } from './dates'
 import { PetDB } from './db'
 import { planFor, weekOf, newWordLimit } from './plan'
 import { buildQuestion, checkSpelling, makeCloze, pickType } from './quiz'
-import { importWords, recordAnswer, restCardsLeft, setMinimal, setTaskDone, streak, spendRestCard } from './store'
+import { addListeningAudios, audioTitle, audiosForWeek, importWords, isAudioFile, recordAnswer, restCardsLeft, setMinimal, setTaskDone, streak, spendRestCard } from './store'
 import type { Word } from './types'
 import { readFileSync } from 'node:fs'
 
@@ -170,6 +170,24 @@ describe('数据库操作', () => {
     expect(await restCardsLeft(START, db)).toBe(0)
     expect(await spendRestCard(addDays(START, 4), db)).toBe(false)
     expect(await restCardsLeft(addDays(START, 7), db)).toBe(2)
+  })
+
+  it('听力音频：识别文件类型，按周次保存，同一周按文件名自然排序', async () => {
+    expect(isAudioFile({ name: 'Test1.MP3', type: '' })).toBe(true)
+    expect(isAudioFile({ name: 'x.bin', type: 'audio/mpeg' })).toBe(true)
+    expect(isAudioFile({ name: 'answers.pdf', type: 'application/pdf' })).toBe(false)
+    expect(audioTitle('Test_1_Part_2.mp3')).toBe('Test 1 Part 2')
+
+    const db = fresh()
+    const f = (name: string, type = '') => new File([new Uint8Array([1, 2, 3])], name, { type })
+    const r = await addListeningAudios([f('Track 10.mp3'), f('Track 2.m4a'), f('key.pdf', 'application/pdf')], 3, db)
+    expect(r).toEqual({ added: 2, skipped: ['key.pdf'] })
+    await addListeningAudios([f('Other.mp3')], 4, db)
+    const week3 = await audiosForWeek(3, db)
+    expect(week3.map((a) => a.name)).toEqual(['Track 2', 'Track 10'])
+    expect(week3.map((a) => a.blob.type)).toEqual(['audio/mp4', 'audio/mpeg'])
+    expect(week3[0].size).toBe(3)
+    expect((await audiosForWeek(4, db)).map((a) => a.name)).toEqual(['Other'])
   })
 
   it('连续天数：休息卡和周日不断签，漏一天就断', () => {
