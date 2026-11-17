@@ -13,8 +13,27 @@ npm run build      # 产出 dist/，纯静态文件，放到任意静态托管�
 npm run preview    # 本地预览构建结果
 ```
 
-部署后在 iPad Safari 或安卓 Chrome 里打开，「添加到主屏幕」即可离线使用。
+部署（见下文）后在 iPad Safari 或安卓 Chrome 里打开，「添加到主屏幕」即可离线使用。
 注意：离线缓存和录音都要求 **https**（或 localhost）；家里的服务器如果只有 http，这两项不可用。
+
+## 部署到 Cloudflare Pages
+
+在 Cloudflare 控制台：Workers & Pages → 创建 → Pages → 连接到 Git，选择这个仓库，然后填：
+
+| 项 | 值 |
+| --- | --- |
+| 生产分支 | `main` |
+| 框架预设 | 无（None） |
+| 构建命令 | `npm run build` |
+| 构建输出目录 | `dist` |
+
+Node 版本由仓库根目录的 `.node-version` 固定为 22（Vite 8 需要 20.19 以上）。
+之后每次推送到生产分支都会自动部署；推送到其他分支会生成预览地址，不影响孩子正在用的版本。
+
+`public/_headers` 设置了响应头：入口文件和 Service Worker 不缓存（保证新版本能推到 iPad 上），
+带哈希的静态资源长期缓存，CSP 只允许连接本站和 Anthropic 接口（AI 作文反馈）。
+
+网站地址是公开的，但网站上只有网页代码，学习数据都只存在各自设备的浏览器里，别人打开看到的是空的应用。
 
 ## 第一次使用
 
