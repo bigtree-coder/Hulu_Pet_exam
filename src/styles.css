@@ -37,6 +37,10 @@ h2 { font-size: 1.25rem; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
 .card.done { background: var(--teal-soft); border-color: #b9ddd4; }
 .card.sun { background: var(--sun-soft); border-color: var(--sun-line); }
+.card.quote { background: linear-gradient(135deg, #fffdf8 0%, #f2f9f6 100%); border-color: #cde3dc; padding: 14px 18px; }
+.quote-label { font-size: 0.8rem; font-weight: 700; color: var(--teal); letter-spacing: 0.02em; margin-bottom: 4px; }
+.quote-zh { font-size: 1.05rem; font-weight: 600; color: var(--ink); }
+.quote-en { font-size: 0.92rem; color: var(--muted); margin-top: 2px; }
 .pill { display: inline-block; padding: 2px 12px; border-radius: 999px; background: var(--sun-soft); border: 1px solid var(--sun-line); font-size: 0.9rem; white-space: nowrap; }
 
 .btn { min-height: 48px; min-width: 48px; padding: 10px 20px; border-radius: 14px; border: 2px solid var(--teal); background: var(--teal); color: #fff; font-weight: 700; cursor: pointer; touch-action: manipulation; }

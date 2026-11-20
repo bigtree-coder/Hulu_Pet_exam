@@ -4,6 +4,7 @@ import { go, useSettings, useToday } from '../hooks'
 import { weekday } from '../lib/dates'
 import { db } from '../lib/db'
 import { planFor, WEEKS, type TaskDef } from '../lib/plan'
+import { getDailyQuote } from '../lib/quotes'
 import { audiosForWeek, isMinimal, restCardsLeft, setMinimal, setTaskDone, spendRestCard } from '../lib/store'
 import { speak } from '../lib/tts'
 
@@ -22,15 +23,23 @@ export default function Today() {
   const plan = planFor(today, settings.startDate, minimal)
   const wp = WEEKS[plan.week - 1]
   const done = new Set(tasks.filter((t) => t.done).map((t) => t.type))
+  const quote = getDailyQuote(today)
 
   const head = (
-    <div className="row spread">
-      <div>
-        <h1>{DAYS[weekday(today)]}</h1>
-        <p className="zh">{wp.topic} · {wp.topicZh}</p>
+    <>
+      <div className="row spread">
+        <div>
+          <h1>{DAYS[weekday(today)]}</h1>
+          <p className="zh">{wp.topic} · {wp.topicZh}</p>
+        </div>
+        <span className="pill">Week {plan.week}</span>
       </div>
-      <span className="pill">Week {plan.week}</span>
-    </div>
+      <section className="card quote" aria-label="每日激励语">
+        <p className="quote-label">🌱 今日小语 · Daily note</p>
+        <p className="quote-zh">{quote.zh}</p>
+        <p className="quote-en">{quote.en}</p>
+      </section>
+    </>
   )
 
   if (meta.restCard) {
